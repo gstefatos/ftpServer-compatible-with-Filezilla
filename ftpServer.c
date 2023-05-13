@@ -11,12 +11,13 @@
 #include <grp.h>
 #include <time.h>
 #include <ctype.h>
+#include <pthread.h>
 
 
-#define PORT 10005
+#define PORT 10006
 #define BUFFER_SIZE 2048
 
-void handle_client(int client_fd);
+void handle_client(void* client_fdIn);
 int create_data_connection(unsigned char ip[4], int port);
 void file_mode_string(mode_t mode, char *str) {
     static const char *rwx[] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
@@ -82,11 +83,12 @@ int main() {
         }
 
         printf("Connection accepted from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-        handle_client(client_fd);
+        pthread_t clientThread;
+        pthread_create(&clientThread,NULL,handle_client,(void*)client_fd);
+        // handle_client(client_fd);
 
         // Close the connection
-        close(client_fd);
+        // close(client_fd);
     }
 
     close(server_fd);
@@ -113,7 +115,8 @@ int create_data_connection(unsigned char ip[4], int port) {
     return data_socket;
 }
 
-void handle_client(int client_fd) {
+void handle_client(void* client_fdIn) {
+    int client_fd = (int)client_fdIn;
     char buffer[BUFFER_SIZE];
     int read_bytes;
     int logged_in = 0;
@@ -181,7 +184,7 @@ while ((read_bytes = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0) {
     else if(strcmp(cmd,"PORT") == 0)
     {
         char ip[4];
-        char p1,p2;
+        unsigned char p1,p2;
         sscanf(buffer, "PORT %hhu,%hhu,%hhu,%hhu,%hhu,%hhu", &ip[0], &ip[1], &ip[2], &ip[3], &p1, &p2);
         int data_port = p1 * 256 + p2;
         data_socket = create_data_connection(ip, data_port);

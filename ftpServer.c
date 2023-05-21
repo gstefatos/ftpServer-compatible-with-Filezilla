@@ -13,7 +13,11 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include "dbFunc.h"
 
+
+
+extern sqlite3 *mDb;
 #define BUFFER_SIZE 2048
 int port  = 0;
 
@@ -59,7 +63,9 @@ int main(int argc, char *argv[]) {
   }
   if(argv[1]!= NULL)
   port = atoi(argv[1]);
-
+  connectToDatabase();
+  // registerClient("makis","makis");
+  // clientAuthentication("eleni","eleni");
   // Create a socket
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
     perror("socket");
@@ -87,6 +93,7 @@ int main(int argc, char *argv[]) {
 
   while (1) {
     // Accept a connection
+    printf("Waiting for incoming connection\n");
     if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
                             &addr_len)) < 0) {
       perror("accept");
@@ -151,7 +158,6 @@ void handle_client(void *client_fdIn) {
   while ((read_bytes = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0) {
     // Ensure the buffer is null-terminated
     buffer[read_bytes] = '\0';
-    printf("Command %s\n", buffer);
     char cmd[5];
     sscanf(buffer, "%4s", cmd);
     if (isValidCommand(cmd) != -1)
@@ -170,15 +176,29 @@ void handleCommands(int client_dfIn, char *commandIn, char *bufferIn) {
   int logged_in = 0;
   int data_socket;
   char mCwd[BUFFER_SIZE];
+  char username[BUFFER_SIZE];
   getcwd(mCwd, sizeof(mCwd));
   memcpy(buffer, bufferIn, BUFFER_SIZE);
-  printf("Command In %s\n", commandIn);
-  if (strcmp(commandIn, "USER") == 0) {
+  if (strcasecmp(commandIn, "USER") == 0) {
+    memset(username,0,BUFFER_SIZE);
+    strncpy(username,buffer+5,strlen(buffer+4));
+    removeSpaces(username);
+    printf("To username einai :%s\n",username);
+    if (checkUsername(username) == NOT_FOUND) {
+      const char response[256];
+      snprintf(response, BUFFER_SIZE, "530 Not logged in. \r\n");
+      send(client_fd, response, strlen(buffer), 0);
+      return NULL;
+    }
     snprintf(buffer, BUFFER_SIZE, "331 User name okay, need password.\r\n");
     send(client_fd, buffer, strlen(buffer), 0);
   } else if (strcasecmp(commandIn, "PASS") == 0) {
-    logged_in = 1;
-    snprintf(buffer, BUFFER_SIZE, "230 User logged in, proceed.\r\n");
+    char password[256];
+    memset(password,0,sizeof(password));
+    strncpy(password,buffer+4,strlen(buffer+4));
+    removeSpaces(password);
+    if(clientAuthentication(username,password) == 0)snprintf(buffer, BUFFER_SIZE, "230 User logged in, proceed.\r\n");
+    else snprintf(buffer, BUFFER_SIZE, "530 Not logged in.\r\n");
     send(client_fd, buffer, strlen(buffer), 0);
   } else if (strcasecmp(commandIn, "QUIT") == 0) {
     snprintf(buffer, BUFFER_SIZE, "221 Goodbye.\r\n");

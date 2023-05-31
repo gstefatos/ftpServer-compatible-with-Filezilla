@@ -35,7 +35,6 @@ int registerClient(char *usernameIn,char* passwordIn)
     memset(finalQuery,0,sizeof(finalQuery));
     encryptData(passwordIn,encryptedPassword);
     sprintf(finalQuery, "INSERT INTO Clients(username, password) VALUES ('%s', '%s');",usernameIn,encryptedPassword);
-    printf("FinalQuery is:%s\n",finalQuery);
     char *err_msg = 0;
     int rc = sqlite3_exec(mDb, finalQuery, 0, 0, &err_msg);
     if (rc != SQLITE_OK) {
@@ -50,25 +49,25 @@ int clientAuthentication(char* usernameIn, char* passwordIn)
     sprintf(sql, "SELECT password FROM Clients WHERE username = '%s';", username);
     sqlite3_stmt *res;
     int rc = sqlite3_prepare_v2(mDb, sql, -1, &res, 0);    
-    if (rc == SQLITE_OK) {
+    if (rc == SQLITE_OK) 
+    {
         int step = sqlite3_step(res);
-        if (step == SQLITE_ROW){
+        if (step == SQLITE_ROW)
+        {
             const char *encryptedPass = (const char *)sqlite3_column_text(res, 0);
             if(decryptData(encryptedPass,passwordIn) == 0)
-            printf("Found a user with the username %s and the given password.\n", username);
+                printf("Found a user with the username %s and the given password.\n", username);
             else return -1;
-        } else {
-            printf("No user found with the username %s and the given password.\n", username);
-        }
-    } else {
-        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(mDb));
-    }
+        } else printf("No user found with the username %s and the given password.\n", username);
+    } 
+    else fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(mDb));
     sqlite3_finalize(res);
     return SUCCESS;
 }
 
 int checkUsername(char* usernameIn)
 {
+    printf("checkUsername: %s\n",usernameIn);
     char sql[256];
     memset(sql,0,sizeof(sql));
     sprintf(sql,"SELECT * FROM Clients WHERE username = '%s';",usernameIn);
